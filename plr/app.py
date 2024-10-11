@@ -4,6 +4,8 @@ import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 from statsmodels.stats.outliers_influence import variance_inflation_factor
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, r2_score
 
 # Title of the app
 st.title('Car Model Analysis: Dummies and VIF')
@@ -25,10 +27,19 @@ if uploaded_file is not None:
     sns.histplot(data_cleaned['Price'], kde=True, ax=ax)
     st.pyplot(fig)
 
-    st.subheader('Mileage Distribution')
-    fig2, ax2 = plt.subplots()
-    sns.histplot(data_cleaned['Mileage'], kde=True, ax=ax2)
-    st.pyplot(fig2)
+    # Correlation Matrix Heatmap
+    st.subheader('Correlation Heatmap')
+    numeric_data = data_cleaned.select_dtypes(include=[np.number])  # Select only numeric columns
+    plt.figure(figsize=(10, 6))
+    sns.heatmap(numeric_data.corr(), annot=True, cmap='coolwarm', fmt=".2f")
+    st.pyplot(plt)
+
+    # Box plot for Price vs Brand
+    st.subheader('Price by Brand')
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x='Brand', y='Price', data=raw_data)
+    plt.xticks(rotation=45)
+    st.pyplot(plt)
 
     # Log price transformation
     log_price = np.log(data_cleaned['Price'])
@@ -59,7 +70,7 @@ if uploaded_file is not None:
 
     # Create dummy variables
     data_with_dummies = pd.get_dummies(data_no_multicollinearity, drop_first=True)
-    
+
     st.write("Data with dummy variables:")
     st.write(data_with_dummies.head())
 
@@ -72,3 +83,33 @@ if uploaded_file is not None:
     data_preprocessed = data_with_dummies[cols]
     st.write("Preprocessed Data:")
     st.write(data_preprocessed.head())
+
+    # Model Building
+    st.subheader('Linear Regression Model')
+    X = data_preprocessed.drop('log_price', axis=1)
+    y = data_preprocessed['log_price']
+    
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # Predictions
+    predictions = model.predict(X)
+
+    # Calculate metrics
+    st.write("Model Coefficients:")
+    st.write(model.coef_)
+    
+    r2 = r2_score(y, predictions)
+    mae = mean_absolute_error(y, predictions)
+
+    st.write(f"R² Score: {r2:.2f}")
+    st.write(f"Mean Absolute Error: {mae:.2f}")
+
+    # Add user interaction for scatter plot
+    st.subheader('Interactive Scatter Plot')
+    selected_brand = st.selectbox("Select Brand", raw_data['Brand'].unique())
+    filtered_data = raw_data[raw_data['Brand'] == selected_brand]
+
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x='Mileage', y='Price', data=filtered_data)
+    st.pyplot(plt)
